@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Batch, Kid } from './types';
 import BatchGallery from './components/BatchGallery';
 import BatchDetails from './components/BatchDetails';
 import GoogleSheetConnector, { SheetUrls } from './components/GoogleSheetConnector';
 import { SpinnerIcon } from './components/icons';
+
+const LOCAL_STORAGE_KEY = 'danceAppSheetUrls';
 
 // --- CSV Parsing and Data Processing Logic ---
 
@@ -12,11 +14,8 @@ const parseCSV = (csvText: string): Record<string, string>[] => {
   const lines = csvText.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
 
-  // This simple split should be fine for headers, as they don't usually contain commas or quotes.
-  // We'll also trim them for safety.
   const headers = lines[0].split(',').map(h => h.trim());
 
-  // Function to parse a single, complex CSV line
   const parseLine = (line: string): string[] => {
     const values = [];
     let currentVal = '';
@@ -26,41 +25,35 @@ const parseCSV = (csvText: string): Record<string, string>[] => {
 
       if (char === '"') {
         if (inQuotes && line[i + 1] === '"') {
-          // This is an escaped quote (e.g., "" inside a field)
           currentVal += '"';
-          i++; // Skip the second quote in the pair
+          i++;
         } else {
-          // This is a regular quote, toggle the inQuotes flag
           inQuotes = !inQuotes;
         }
       } else if (char === ',' && !inQuotes) {
-        // A comma outside of quotes is a field separator
         values.push(currentVal.trim());
         currentVal = '';
       } else {
-        // A regular character, part of the current field
         currentVal += char;
       }
     }
-    values.push(currentVal.trim()); // Add the last value
+    values.push(currentVal.trim());
     return values;
   };
   
   const rows = lines.slice(1).map(line => {
-    if (!line.trim()) return null; // Skip empty lines
+    if (!line.trim()) return null;
     const values = parseLine(line);
 
     return headers.reduce((obj, header, index) => {
-      // Assign value to header, provide empty string if value is missing
       obj[header] = values[index] || ''; 
       return obj;
     }, {} as Record<string, string>);
-  }).filter(row => row !== null); // Filter out the empty lines we nulled earlier
+  }).filter(row => row !== null);
   
   return rows as Record<string, string>[];
 };
 
-// Fetches and processes data from published Google Sheet CSVs
 async function fetchSheetData(urls: SheetUrls): Promise<Batch[]> {
   const [batchesResponse, kidsResponse] = await Promise.all([
     fetch(urls.batchesUrl),
@@ -81,14 +74,11 @@ async function fetchSheetData(urls: SheetUrls): Promise<Batch[]> {
 
   const kidsData: Kid[] = rawKids.map(kid => ({
     id: kid.id,
-    // FIX: Be case-insensitive for common headers from the sheet
     name: kid.name || kid.Name,
     age: parseInt(kid.age || kid.Age, 10),
     lastBillPaidDate: new Date(kid.lastBillPaidDate),
-    batchId: kid.batchId || kid.BatchId // Keep batchId for mapping
+    batchId: kid.batchId || kid.BatchId
   }))
-  // Filter out any kids that are missing an id or a name from the CSV
-  // This prevents crashes from incomplete rows in the Google Sheet.
   .filter(kid => kid.id && kid.name);
 
   const batchesData: Batch[] = rawBatches.map(batch => ({
@@ -109,10 +99,23 @@ const App: React.FC = () => {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
   const [sheetUrls, setSheetUrls] = useState<SheetUrls | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start as true to check localStorage
   const [error, setError] = useState<string | null>(null);
 
-  const isDataLoaded = sheetUrls !== null;
+  useEffect(() => {
+    try {
+        const savedUrls = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (savedUrls) {
+            const parsedUrls: SheetUrls = JSON.parse(savedUrls);
+            handleConnectSheet(parsedUrls);
+        } else {
+            setIsLoading(false); // No saved URLs, stop loading and show connector
+        }
+    } catch (e) {
+        console.error("Failed to parse stored URLs", e);
+        setIsLoading(false);
+    }
+  }, []);
 
   const handleConnectSheet = async (urls: SheetUrls) => {
     setIsLoading(true);
@@ -121,9 +124,13 @@ const App: React.FC = () => {
       const data = await fetchSheetData(urls);
       setBatches(data);
       setSheetUrls(urls);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(urls));
     } catch (err) {
       console.error(err);
       setError('Failed to load data. Please check the URLs and ensure they are correct CSV links from "Publish to the web".');
+      // If auto-loading fails, clear stored URLs so user can re-enter them
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      setSheetUrls(null);
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +144,6 @@ const App: React.FC = () => {
 
     const originalBatches = JSON.parse(JSON.stringify(batches));
 
-    // Optimistic UI Update
     const updatedBatches = batches.map(b => {
       if (b.id === batchId) {
         return {
@@ -153,21 +159,16 @@ const App: React.FC = () => {
         if (updatedSelectedBatch) setSelectedBatch(updatedSelectedBatch);
     }
 
-
-    // Call Apps Script to update the sheet
     try {
       const response = await fetch(sheetUrls.appsScriptUrl, {
         method: 'POST',
-        // CORS is required. The Apps Script needs to be deployed to allow anonymous access.
         mode: 'cors',
-        // Apps Script web apps often perform a redirect, which needs to be followed.
         redirect: 'follow',
         headers: {
-          'Content-Type': 'text/plain;charset=utf-8', // Recommended for simple POST to Apps Script
+          'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify({
           studentId: kidId,
-          // Format date as YYYY-MM-DD for easy parsing in the sheet
           newDate: newDate.toISOString().split('T')[0]
         })
       });
@@ -180,7 +181,6 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Failed to update Google Sheet:", error);
       alert("Could not update the Google Sheet. Your change has been reverted. Please check your Apps Script setup and internet connection.");
-      // Revert UI on failure
       setBatches(originalBatches);
       if(selectedBatch?.id === batchId) {
         const originalSelectedBatch = originalBatches.find((b: Batch) => b.id === batchId);
@@ -191,6 +191,7 @@ const App: React.FC = () => {
 
 
   const handleDisconnect = () => {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
     setSheetUrls(null);
     setBatches([]);
     setSelectedBatch(null);
@@ -210,12 +211,12 @@ const App: React.FC = () => {
       return (
         <div className="flex flex-col items-center justify-center text-center p-8">
           <SpinnerIcon />
-          <p className="text-lg text-gray-600 mt-4">Fetching data from Google Sheets...</p>
+          <p className="text-lg text-gray-600 mt-4">Loading Dashboard...</p>
         </div>
       );
     }
 
-    if (!isDataLoaded) {
+    if (!sheetUrls) {
       return <GoogleSheetConnector onConnect={handleConnectSheet} error={error} />;
     }
 
@@ -240,7 +241,7 @@ const App: React.FC = () => {
           Little Stars Dance Academy
         </h1>
         <p className="text-lg text-gray-500 mt-2">Your dance group management dashboard</p>
-         {isDataLoaded && (
+         {sheetUrls && (
           <button 
             onClick={handleDisconnect} 
             className="absolute top-0 right-0 mt-2 mr-2 bg-gray-200 text-gray-700 text-sm font-semibold py-1 px-3 rounded-lg hover:bg-gray-300 transition-colors">
