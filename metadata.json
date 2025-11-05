@@ -1,0 +1,5 @@
+{
+  "name": "Kids Dance Group Manager",
+  "description": "An application to manage student rosters for different dance batches in a kids dance group. It allows tracking student details and their last bill payment date, highlighting overdue payments.",
+  "requestFramePermissions": []
+}
