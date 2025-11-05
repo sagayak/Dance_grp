@@ -9,10 +9,11 @@ interface BatchDetailsProps {
   onBack: () => void;
   onAddKid: (batchId: string, kidData: Omit<Kid, 'id' | 'lastBillPaidDate'> & { lastBillPaidDate: string }) => void;
   onDeleteKid: (batchId: string, kidId: string) => void;
+  onUpdateKid: (batchId: string, kidId: string, newDate: Date) => void;
   onEditBatch: (batch: Batch) => void;
 }
 
-const BatchDetails: React.FC<BatchDetailsProps> = ({ batch, onBack, onAddKid, onDeleteKid, onEditBatch }) => {
+const BatchDetails: React.FC<BatchDetailsProps> = ({ batch, onBack, onAddKid, onDeleteKid, onUpdateKid, onEditBatch }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   
   const handleAddKid = (kidData: Omit<Kid, 'id' | 'lastBillPaidDate'> & { lastBillPaidDate: string }) => {
@@ -67,7 +68,12 @@ const BatchDetails: React.FC<BatchDetailsProps> = ({ batch, onBack, onAddKid, on
                 .slice() // Create a shallow copy to avoid mutating the original array
                 .sort((a, b) => a.name.localeCompare(b.name)) // Sort kids alphabetically by name
                 .map(kid => (
-                    <KidCard key={kid.id} kid={kid} onDelete={() => onDeleteKid(batch.id, kid.id)} />
+                    <KidCard 
+                        key={kid.id} 
+                        kid={kid} 
+                        onDelete={() => onDeleteKid(batch.id, kid.id)}
+                        onUpdateDate={(newDate) => onUpdateKid(batch.id, kid.id, newDate)}
+                    />
                 ))
             }
           </div>

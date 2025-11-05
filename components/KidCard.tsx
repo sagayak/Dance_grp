@@ -1,17 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Kid } from '../types';
-import { TrashIcon } from './icons';
+import { PencilIcon, TrashIcon } from './icons';
 
 interface KidCardProps {
   kid: Kid;
   onDelete: () => void;
+  onUpdateDate: (newDate: Date) => void;
 }
 
-const KidCard: React.FC<KidCardProps> = ({ kid, onDelete }) => {
+const KidCard: React.FC<KidCardProps> = ({ kid, onDelete, onUpdateDate }) => {
+  const [isEditingDate, setIsEditingDate] = useState(false);
+
   const isPaymentOverdue = () => {
     const now = new Date();
     const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    return kid.lastBillPaidDate < firstDayOfCurrentMonth;
+    // Set hours to 0 to avoid timezone issues where the date might be the last day of the previous month
+    firstDayOfCurrentMonth.setHours(0, 0, 0, 0);
+    const paidDate = new Date(kid.lastBillPaidDate);
+    paidDate.setHours(0,0,0,0);
+    return paidDate < firstDayOfCurrentMonth;
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const dateValue = e.target.value;
+    if (dateValue) {
+      // Using 'T00:00:00' helps prevent timezone-related issues where new Date('YYYY-MM-DD') might result in the previous day.
+      onUpdateDate(new Date(`${dateValue}T00:00:00`));
+      setIsEditingDate(false);
+    }
   };
 
   const overdue = isPaymentOverdue();
@@ -40,9 +56,25 @@ const KidCard: React.FC<KidCardProps> = ({ kid, onDelete }) => {
       <div className="flex items-center space-x-4">
         <div className="text-right">
           <p className={`text-sm font-medium ${subTextColorClass}`}>Last Bill Paid</p>
-          <p className={`font-semibold ${textColorClass}`}>
-            {kid.lastBillPaidDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
+          {isEditingDate ? (
+             <input
+                type="date"
+                value={kid.lastBillPaidDate.toISOString().split('T')[0]}
+                onChange={handleDateChange}
+                onBlur={() => setIsEditingDate(false)} // Hide if user clicks away
+                autoFocus
+                className="block w-full px-2 py-1 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm"
+            />
+          ) : (
+            <div className="flex items-center justify-end group">
+                <p className={`font-semibold ${textColorClass} mr-1`}>
+                    {kid.lastBillPaidDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+                <button onClick={() => setIsEditingDate(true)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-pink-500 transition-opacity" aria-label="Edit date">
+                    <PencilIcon />
+                </button>
+            </div>
+          )}
         </div>
         <button
           onClick={(e) => {
