@@ -1,16 +1,12 @@
 import React from 'react';
 import { Batch } from '../types';
-import { PencilIcon, PlusIcon, TrashIcon } from './icons';
 
 interface BatchGalleryProps {
   batches: Batch[];
   onSelectBatch: (batch: Batch) => void;
-  onAddBatch: () => void;
-  onEditBatch: (batch: Batch) => void;
-  onDeleteBatch: (batchId: string) => void;
 }
 
-const BatchGallery: React.FC<BatchGalleryProps> = ({ batches, onSelectBatch, onAddBatch, onEditBatch, onDeleteBatch }) => {
+const BatchGallery: React.FC<BatchGalleryProps> = ({ batches, onSelectBatch }) => {
   const colors = [
     'from-purple-400 to-pink-500',
     'from-blue-400 to-indigo-500',
@@ -28,22 +24,6 @@ const BatchGallery: React.FC<BatchGalleryProps> = ({ batches, onSelectBatch, onA
             onClick={() => onSelectBatch(batch)}
             className={`group relative cursor-pointer rounded-xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 p-6 text-white bg-gradient-to-br ${colors[index % colors.length]}`}
           >
-            <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <button
-                onClick={(e) => { e.stopPropagation(); onEditBatch(batch); }}
-                className="p-2 rounded-full bg-black bg-opacity-20 hover:bg-opacity-40"
-                aria-label="Edit batch"
-              >
-                <PencilIcon />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDeleteBatch(batch.id); }}
-                className="p-2 rounded-full bg-black bg-opacity-20 hover:bg-opacity-40"
-                aria-label="Delete batch"
-              >
-                <TrashIcon />
-              </button>
-            </div>
             <div className="flex flex-col h-full">
               <h3 className="text-3xl font-extrabold tracking-wider">{batch.time}</h3>
               <p className="mt-1 font-medium">{batch.day}</p>
@@ -54,13 +34,12 @@ const BatchGallery: React.FC<BatchGalleryProps> = ({ batches, onSelectBatch, onA
             </div>
           </div>
         ))}
-        <div
-          onClick={onAddBatch}
-          className="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 hover:border-pink-400 hover:bg-pink-50 transition-all duration-300 p-6 flex flex-col items-center justify-center text-gray-400 hover:text-pink-500 min-h-[180px]"
-        >
-          <PlusIcon />
-          <span className="mt-2 font-semibold">Add New Batch</span>
-        </div>
+         {batches.length === 0 && (
+          <div className="col-span-full text-center bg-white rounded-xl shadow-sm p-12">
+            <p className="text-gray-500">No batch data found in the Google Sheet.</p>
+            <p className="text-gray-400 text-sm mt-2">Please ensure the 'Batches' tab is populated correctly.</p>
+          </div>
+        )}
       </div>
     </div>
   );

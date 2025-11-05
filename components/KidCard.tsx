@@ -1,39 +1,44 @@
 import React, { useState } from 'react';
 import { Kid } from '../types';
-import { PencilIcon, TrashIcon } from './icons';
+import { PencilIcon } from './icons';
 
 interface KidCardProps {
   kid: Kid;
-  onDelete: () => void;
-  onUpdateDate: (newDate: Date) => void;
+  onUpdateDate: (date: Date) => void;
 }
 
-const KidCard: React.FC<KidCardProps> = ({ kid, onDelete, onUpdateDate }) => {
-  const [isEditingDate, setIsEditingDate] = useState(false);
+const KidCard: React.FC<KidCardProps> = ({ kid, onUpdateDate }) => {
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = new Date(e.target.value);
+    // Adjust for timezone offset to prevent the date from being off by one day
+    const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+    const adjustedDate = new Date(newDate.getTime() + timezoneOffset);
+    onUpdateDate(adjustedDate);
+    setIsEditing(false);
+  };
 
   const isPaymentOverdue = () => {
     const now = new Date();
     const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    // Set hours to 0 to avoid timezone issues where the date might be the last day of the previous month
     firstDayOfCurrentMonth.setHours(0, 0, 0, 0);
     const paidDate = new Date(kid.lastBillPaidDate);
     paidDate.setHours(0,0,0,0);
     return paidDate < firstDayOfCurrentMonth;
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const dateValue = e.target.value;
-    if (dateValue) {
-      // Using 'T00:00:00' helps prevent timezone-related issues where new Date('YYYY-MM-DD') might result in the previous day.
-      onUpdateDate(new Date(`${dateValue}T00:00:00`));
-      setIsEditingDate(false);
-    }
-  };
-
   const overdue = isPaymentOverdue();
   const cardBgClass = overdue ? 'bg-red-100 border-red-400' : 'bg-white';
   const textColorClass = overdue ? 'text-red-800' : 'text-gray-800';
   const subTextColorClass = overdue ? 'text-red-600' : 'text-gray-500';
+
+  const dateToInputValue = (date: Date) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   return (
     <div className={`flex items-center justify-between p-4 rounded-xl shadow-sm border ${cardBgClass} transition-colors duration-300`}>
@@ -53,41 +58,27 @@ const KidCard: React.FC<KidCardProps> = ({ kid, onDelete, onUpdateDate }) => {
           <p className={`text-sm ${subTextColorClass}`}>Age: {kid.age}</p>
         </div>
       </div>
-      <div className="flex items-center space-x-4">
-        <div className="text-right">
-          <p className={`text-sm font-medium ${subTextColorClass}`}>Last Bill Paid</p>
-          {isEditingDate ? (
-             <input
-                type="date"
-                value={kid.lastBillPaidDate.toISOString().split('T')[0]}
-                onChange={handleDateChange}
-                onBlur={() => setIsEditingDate(false)} // Hide if user clicks away
-                autoFocus
-                className="block w-full px-2 py-1 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm"
-            />
-          ) : (
-            <div className="flex items-center justify-end group">
-                <p className={`font-semibold ${textColorClass} mr-1`}>
-                    {kid.lastBillPaidDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
-                <button onClick={() => setIsEditingDate(true)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-pink-500 transition-opacity" aria-label="Edit date">
-                    <PencilIcon />
-                </button>
-            </div>
-          )}
-        </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (window.confirm(`Are you sure you want to remove ${kid.name}?`)) {
-              onDelete();
-            }
-          }}
-          className="text-gray-400 hover:text-red-500 transition-colors duration-200 p-2 rounded-full hover:bg-gray-100"
-          aria-label={`Delete ${kid.name}`}
-        >
-          <TrashIcon />
-        </button>
+      <div className="text-right">
+        <p className={`text-sm font-medium ${subTextColorClass}`}>Last Bill Paid</p>
+        {isEditing ? (
+          <input
+            type="date"
+            defaultValue={dateToInputValue(kid.lastBillPaidDate)}
+            onChange={handleDateChange}
+            onBlur={() => setIsEditing(false)}
+            autoFocus
+            className={`p-1 rounded-md border-gray-300 shadow-sm focus:border-pink-500 focus:ring-pink-500 sm:text-sm ${textColorClass} bg-transparent`}
+          />
+        ) : (
+          <div className="flex items-center space-x-2 justify-end">
+            <p className={`font-semibold ${textColorClass}`}>
+                {kid.lastBillPaidDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+            <button onClick={() => setIsEditing(true)} className={`p-1 rounded-full hover:bg-gray-200 ${subTextColorClass}`}>
+                <PencilIcon />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
