@@ -1,18 +1,33 @@
-import React from 'react';
-import { Batch } from '../types';
+import React, { useState } from 'react';
+import { Batch, Kid } from '../types';
 import KidCard from './KidCard';
-import { BackArrowIcon } from './icons';
+import { BackArrowIcon, AddIcon } from './icons';
+import AddKidForm from './AddKidForm';
 
 interface BatchDetailsProps {
   batch: Batch;
   onBack: () => void;
   onUpdateKid: (kidId: string, batchId: string, newDate: Date) => void;
+  onAddKid: (kid: Omit<Kid, 'id'>) => void;
 }
 
-const BatchDetails: React.FC<BatchDetailsProps> = ({ batch, onBack, onUpdateKid }) => {
+const BatchDetails: React.FC<BatchDetailsProps> = ({ batch, onBack, onUpdateKid, onAddKid }) => {
+  const [isAddKidModalOpen, setIsAddKidModalOpen] = useState(false);
+
+  const handleAddKid = (kid: Omit<Kid, 'id'>) => {
+    onAddKid(kid);
+    setIsAddKidModalOpen(false);
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
+      {isAddKidModalOpen && (
+        <AddKidForm
+          onAddKid={handleAddKid}
+          onCancel={() => setIsAddKidModalOpen(false)}
+          batchId={batch.id}
+        />
+      )}
       <div className="flex items-center mb-6">
         <button
           onClick={onBack}
@@ -25,12 +40,19 @@ const BatchDetails: React.FC<BatchDetailsProps> = ({ batch, onBack, onUpdateKid 
 
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-            <div className="flex items-center space-x-3">
-              <div>
-                <h2 className="text-3xl font-bold text-pink-600">{batch.time} Batch</h2>
-                <p className="text-gray-500 mt-1">{batch.day} with {batch.instructor}</p>
-              </div>
+          <div className="flex items-center space-x-3">
+            <div>
+              <h2 className="text-3xl font-bold text-pink-600">{batch.time} Batch</h2>
+              <p className="text-gray-500 mt-1">{batch.day} with {batch.instructor}</p>
             </div>
+          </div>
+          <button
+            onClick={() => setIsAddKidModalOpen(true)}
+            className="mt-4 sm:mt-0 flex items-center bg-pink-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-pink-600 transition-colors"
+          >
+            <AddIcon />
+            <span className="ml-2">Add Student</span>
+          </button>
         </div>
       </div>
       

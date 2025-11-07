@@ -1,12 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Batch } from '../types';
+import BatchForm from './BatchForm';
+import { AddIcon } from './icons';
 
 interface BatchGalleryProps {
   batches: Batch[];
   onSelectBatch: (batch: Batch) => void;
+  onAddBatch: (batch: Omit<Batch, 'id' | 'kids'>) => void;
 }
 
-const BatchGallery: React.FC<BatchGalleryProps> = ({ batches, onSelectBatch }) => {
+const BatchGallery: React.FC<BatchGalleryProps> = ({ batches, onSelectBatch, onAddBatch }) => {
+  const [isAddBatchModalOpen, setIsAddBatchModalOpen] = useState(false);
+
   const colors = [
     'from-purple-400 to-pink-500',
     'from-blue-400 to-indigo-500',
@@ -14,9 +19,29 @@ const BatchGallery: React.FC<BatchGalleryProps> = ({ batches, onSelectBatch }) =
     'from-yellow-400 to-orange-500',
   ];
 
+  const handleAddBatch = (batch: Omit<Batch, 'id' | 'kids'>) => {
+    onAddBatch(batch);
+    setIsAddBatchModalOpen(false);
+  };
+
   return (
     <div>
-      <h2 className="text-2xl font-bold text-center mb-6 text-gray-700">Our Dance Batches</h2>
+      {isAddBatchModalOpen && (
+        <BatchForm
+          onAddBatch={handleAddBatch}
+          onCancel={() => setIsAddBatchModalOpen(false)}
+        />
+      )}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-700">Our Dance Batches</h2>
+        <button
+          onClick={() => setIsAddBatchModalOpen(true)}
+          className="flex items-center bg-pink-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-pink-600 transition-colors"
+        >
+          <AddIcon />
+          <span className="ml-2">Add Batch</span>
+        </button>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {batches.map((batch, index) => (
           <div
